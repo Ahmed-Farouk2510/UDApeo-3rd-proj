@@ -86,9 +86,9 @@ jobs:
       - image: cimg/node:13.8.0
     steps:
      - checkout
-      - restore_cache:
+     - restore_cache:
           keys: [backend-build]
-      - run:
+     - run:
           name: Backend unit test
           command: |
              cd backend
