@@ -231,28 +231,28 @@ jobs:
             ansible-playbook -i inventory.txt configure-server.yml
       - destroy-environment           
 
-  run-migrations: # create run-migrations
-    docker:
-      - image: cimg/node:13.8.0
-    steps:
-      - checkout
-      - install_awscli 
-      - run:
-          name: Run migrations
-          command: |
-            cd backend
-            npm install
-            npm run migrations > migrations_dump.txt
-      - run: 
-          name: Send Migration Results to kvdb.io
-          command: |
-            if grep -q "has been executed successfully." ~/project/backend/migrations_dump.txt
-            then
+  # run-migrations: # create run-migrations
+  #   docker:
+  #     - image: cimg/node:13.8.0
+  #   steps:
+  #     - checkout
+  #     - install_awscli 
+  #     - run:
+  #         name: Run migrations
+  #         command: |
+  #           cd backend
+  #           npm install
+  #           npm run migrations > migrations_dump.txt
+  #     - run: 
+  #         name: Send Migration Results to kvdb.io
+  #         command: |
+  #           if grep -q "has been executed successfully." ~/project/backend/migrations_dump.txt
+  #           then
               
-              curl  https://kvdb.io/9y3ELRpFQ24kmFs5oyB88b/migration_${CIRCLE_WORKFLOW_ID:0:7} -d '1' 
-            fi
-      - destroy-environment     
-      - revert-migrations    
+  #             curl  https://kvdb.io/9y3ELRpFQ24kmFs5oyB88b/migration_${CIRCLE_WORKFLOW_ID:0:7} -d '1' 
+  #           fi
+  #     - destroy-environment     
+  #     - revert-migrations    
 
   # deploy-frontend:
   #   docker:
