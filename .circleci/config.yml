@@ -230,7 +230,7 @@ jobs:
   run-migrations:
     docker:
       # Docker image here that supports NodeJS
-      - image: cimg/base:stable
+      - image: cimg/node:13.8.0
     steps:
       # Checkout code from git
       - checkout
@@ -243,8 +243,8 @@ jobs:
           command: |
             cd backend
             npm install
-            npm run migrations > migrations_dump.txt
-            cat migrations_dump.txt
+            npm run premigrations
+            npm run migrations 
       - run:
           name: Send migration status to kvdb.io
           command: |
