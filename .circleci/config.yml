@@ -214,6 +214,7 @@ jobs:
     steps:
       - checkout 
       - install_ansible
+      
       - add_ssh_keys:
           fingerprints: ["fd:d2:04:c3:1c:3a:55:1e:b1:6e:91:3e:dd:a5:2a:9a"]
       - attach_workspace:
@@ -234,7 +235,7 @@ jobs:
       # Checkout code from git
       - checkout
       - install_awscli
-      - install_nodejs
+      
       - restore_cache:
           keys: [backend-build]
       - run:
