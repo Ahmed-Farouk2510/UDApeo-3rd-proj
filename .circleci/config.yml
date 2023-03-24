@@ -1,7 +1,7 @@
 version: 2.1
 
 commands:
-  install_awscli: #we will install awscli 
+  install_awscli: #we will install awscli 2
      description: Install awscli v2
      steps:
        - run:
