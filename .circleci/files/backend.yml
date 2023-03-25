@@ -32,15 +32,16 @@ Resources:
       InstanceType: t2.micro
       SecurityGroups:
         - Ref: InstanceSecurityGroup
-      KeyName: AF-3rd-proj 
-      ImageId: ami-0a6b2839d44d781b2
+      KeyName: AF-3rd-proj
+      ImageId: ami-0a6b2839d44d781b2 
       Tags:
         - Key: Name
           Value: !Sub backend-${ID}
         - Key: Project
           Value: Udapeople
-  
-  MyEIP:
+
+  InstanceEIP:      
     Type: AWS::EC2::EIP
     Properties:
+      Domain: vpc
       InstanceId: !Ref EC2Instance

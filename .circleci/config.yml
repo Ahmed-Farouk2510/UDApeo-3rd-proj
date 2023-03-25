@@ -31,8 +31,10 @@ commands:
             # Install Node.js LTS version as our base Node.js version
             curl -fsSL https://deb.nodesource.com/setup_13.x | sudo -E bash -
             sudo apt install -y nodejs 
-            sudo npm install -g n
-            sudo n 13.8.0
+
+            # Use n version manager to use Node.js v13.8.0
+            sudo npm install --global n -y
+            sudo n 13.8.0 
 
   destroy-environment:
      description: Destroy back-end and front-end cloudformation stacks given a workflow ID.
@@ -49,7 +51,6 @@ commands:
              aws s3 rm "s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}" --recursive
              aws cloudformation delete-stack --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}
        
-
 
   revert-migrations:
      description: Revert the last migration if successfully run in the current workflow.
@@ -69,45 +70,45 @@ commands:
              then
                cd ~/project/backend
                npm install
-               npm set audit false
                npm run migrations:revert
              fi
+            
 jobs:
-  build-frontend:
+  build-frontend: 
     docker:
       - image: cimg/node:13.8.0
     steps:
       - checkout
       - restore_cache:
-          keys: [frontend-build]
+          keys: [frontend-deps]
       - run:
           name: Build front-end
           command: |
-             cd frontend
-             npm install
-             npm run build 
+            cd frontend
+            npm install
+            npm run build
       - save_cache:
           paths: [frontend/node_modules]
-          key: frontend-build
+          key: frontend-deps
 
-  build-backend:
+  build-backend: # create build-backend
     docker:
       - image: cimg/node:13.8.0
     steps:
       - checkout
       - restore_cache:
-          keys: [backend-build]
+          keys: [backend-deps]
       - run:
           name: Back-end build
           command: |
-             cd backend
-             npm install
-             npm run build
+            cd backend
+            npm install
+            npm run build
       - save_cache:
           paths: [backend/node_modules]
-          key: backend-build
+          key: backend-deps
 
-  test-frontend:
+  test-frontend: 
     docker:
       - image: cimg/node:13.8.0
     steps:
@@ -115,59 +116,64 @@ jobs:
       - restore_cache:
           keys: [frontend-build]
       - run:
-          name: frontend unit test
+          name: test front-end
           command: |
-             cd frontend
-             npm install
-             npm test
-      
-  test-backend:
+            cd frontend
+            npm install 
+            npm run test
+                
+  test-backend: 
     docker:
       - image: cimg/node:13.8.0
     steps:
-     - checkout
-     - restore_cache:
+      - checkout
+      - restore_cache:
           keys: [backend-build]
-     - run:
-          name: Backend unit test
+      - run:
+          name: Test Backend 
           command: |
-             cd backend
-             npm install
-             npm test
-     
-  scan-frontend:
+            cd backend
+            npm install 
+            npm run test
+            
+  scan-frontend:  # create scan-frontendd
     docker:
-     - image: cimg/node:13.8.0
+      - image: cimg/node:13.8.0
     steps:
-     - checkout
-     - restore_cache:
+      - checkout
+      - restore_cache:
           keys: [frontend-build]
-     - run:
-          name: frontend scan
+      - run:
+          name: scan front-end
           command: |
-             cd frontend
-             npm install
-             npm audit fix --force --audit-level=critical
-             npm audit fix --force --audit-level=critical
+            cd frontend
+            npm install 
+            npm audit fix --force --audit-level=critical
+            npm audit fix --force --audit-level=critical
+            npm audit fix --force --audit-level=critical
+            npm audit fix --force --audit-level=critical
+            npm audit fix --force --audit-level=critical
+            npm audit --audit-level=critical
 
-             npm audit --audit-level=critical
-
-  scan-backend:
+  scan-backend: 
     docker:
-     - image: cimg/node:13.8.0
+      - image: cimg/node:13.8.0
     steps:
-     - checkout
-     - restore_cache:
+      - checkout
+      - restore_cache:
           keys: [backend-build]
-     - run:
-          name: Backend scan
+      - run:
+          name: Scan Back-end 
           command: |
-             cd backend
-             npm install
-             npm audit fix --force --audit-level=critical
-             npm audit fix --force --audit-level=critical
-             npm audit fix --force --audit-level=critical
-             npm audit --audit-level=critical
+            cd backend
+            npm install 
+            npm audit fix --force --audit-level=critical
+            npm audit fix --force --audit-level=critical
+            npm audit fix --force --audit-level=critical
+            npm audit fix --force --audit-level=critical
+            npm audit fix --force --audit-level=critical
+            npm audit fix --force --audit-level=critical
+            
 
   deploy-infrastructure:
     docker:
@@ -205,8 +211,7 @@ jobs:
           root: ~/
           paths:
             - project/.circleci/ansible/inventory.txt
-      - destroy-environment
-            
+      - destroy-environment   
 
   configure-infrastructure:
     docker:
@@ -214,7 +219,6 @@ jobs:
     steps:
       - checkout 
       - install_ansible
-      
       - add_ssh_keys:
           fingerprints: ["fd:d2:04:c3:1c:3a:55:1e:b1:6e:91:3e:dd:a5:2a:9a"]
       - attach_workspace:
@@ -227,17 +231,12 @@ jobs:
             ansible-playbook -i inventory.txt configure-server.yml
       - destroy-environment           
 
-  run-migrations:
+  run-migrations: # create run-migrations
     docker:
-      # Docker image here that supports NodeJS
       - image: cimg/node:13.8.0
     steps:
-      # Checkout code from git
       - checkout
-      - install_awscli
-      
-      # - restore_cache:
-      #     keys: [backend-build]
+      - install_awscli 
       - run:
           name: Run migrations
           command: |
@@ -245,19 +244,18 @@ jobs:
             npm install
             npm run premigrations
             npm run migrations 
-      - run:
-          name: Send migration status to kvdb.io
+      - run: 
+          name: Send Migration Results to kvdb.io
           command: |
             if grep -q "has been executed successfully." ~/project/backend/migrations_dump.txt
             then
-              curl https://kvdb.io/${KVDB_BUCKET}/migration_${CIRCLE_WORKFLOW_ID:0:7}  -d "1"
-            else
-              echo "No migrations are pending" 
+              # If you are using kvdb.io, generate the bucket ID "9y3ELRpFQ24kmFs5oyB88b" in your local terminal first
+              curl -d '1' https://kvdb.io/9y3ELRpFQ24kmFs5oyB88b/migration_${CIRCLE_WORKFLOW_ID:0:7}  
             fi
-     # Here's where you will add some code to rollback on failure
-      # - destroy-environment
-      # - revert-migrations
+#      - revert-migrations
+       
 
+      
   deploy-frontend:
     docker:
       - image: cimg/base:stable
@@ -265,8 +263,8 @@ jobs:
       - checkout
       - install_awscli
       - install_nodejs
-      # - restore_cache:
-      #     keys: [frontend-deps]
+      - restore_cache:
+          keys: [frontend-deps]
       - run:
           name: Install dependencies
           command: |
@@ -301,11 +299,11 @@ jobs:
       - install_nodejs
       - install_ansible
       - add_ssh_keys:
-          fingerprints: ["15:05:33:62:b4:7c:3e:55:9d:c0:e3:ca:c6:ab:95:db"]
+          fingerprints: ["fd:d2:04:c3:1c:3a:55:1e:b1:6e:91:3e:dd:a5:2a:9a"]
       - attach_workspace:
           at: ~/
-      # - restore_cache:
-      #     keys: [backend-deps]
+      - restore_cache:
+          keys: [backend-deps]
       - run:
           name: Install dependencies
           command: |
@@ -373,7 +371,6 @@ jobs:
           Workflow_ID: ${CIRCLE_WORKFLOW_ID:0:7}  
 
 
-  
   cloudfront-update:
     docker:
       - image: cimg/base:stable
@@ -399,6 +396,7 @@ jobs:
           Workflow_ID: ${CIRCLE_WORKFLOW_ID:0:7}
       - revert-migrations:
           Workflow_ID: ${CIRCLE_WORKFLOW_ID:0:7} 
+
   cleanup:
       docker:
         - image: cimg/base:stable
