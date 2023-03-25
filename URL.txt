@@ -2,7 +2,7 @@ URL01
 https://github.com/Ahmed-Farouk2510/UDApeo-3rd-proj
 
 URL02
-https://s3.console.aws.amazon.com/s3/buckets/udapeople-0f98859?region=us-east-1&tab=objects
+https://s3.console.aws.amazon.com/s3/buckets/udapeople-3515e73?region=us-east-1&tab=objects
 
 URL03
-https://d2g637hzz1e5gq.cloudfront.net
+http://d17ppkq3acsmwt.cloudfront.net/#/employees
