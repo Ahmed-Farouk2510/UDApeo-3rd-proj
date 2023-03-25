@@ -32,16 +32,17 @@ Resources:
       InstanceType: t2.micro
       SecurityGroups:
         - Ref: InstanceSecurityGroup
-      KeyName: AF-3rd-proj
-      ImageId: ami-0a6b2839d44d781b2 
+      KeyName: AF-3rd-proj # If you use another key pair name, you should change this value to match.
+      # If this ami id is not available for you, you can find another (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/finding-an-ami.html)
+      # Ubuntu 18 or higher works fine
+      ImageId: ami-08c40ec9ead489470
       Tags:
         - Key: Name
           Value: !Sub backend-${ID}
         - Key: Project
           Value: Udapeople
-
-  InstanceEIP:      
+  
+  MyEIP:
     Type: AWS::EC2::EIP
     Properties:
-      Domain: vpc
       InstanceId: !Ref EC2Instance
