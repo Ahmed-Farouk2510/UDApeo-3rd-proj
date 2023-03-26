@@ -61,26 +61,25 @@ commands:
             aws cloudformation delete-stack --stack-name udapeople-frontend-<<parameters.workflow_id>>
 
   revert-migrations:
-    description: Revert the last migration, if any were executed during the current workflow
-    parameters:
-      Workflow_ID:
-        type: string
-        default: ${CIRCLE_WORKFLOW_ID:0:7}
-    steps:
-      - run:
-          name: Revert migrations
-          when: on_fail
-          command: |
-            SUCCESS=$(curl --insecure  https://kvdb.io/${KVDB_BUCKET}/migration_<<parameters.Workflow_ID>>)
-            # Logic for reverting the database state
-            if (( $SUCCESS == 1 ));
-            then
-              cd ~/project/backend
-              npm install
-              npm set audit false
-              npm run migration:revert
-            fi
-           
+     description: Revert the last migration if successfully run in the current workflow.
+     parameters:
+       Workflow_ID:
+         type: string
+         default: ${CIRCLE_WORKFLOW_ID:0:7}       
+     steps:
+       - run:
+           name: Revert migrations
+           when: on_fail
+           command: |
+             SUCCESS=$(curl --insecure  https://kvdb.io/${KVDB_BUCKET}/migration_dfr)
+             echo "$SUCCESS"
+             # Logic for reverting the database state
+             if (( $SUCCESS == 1 ));
+             then
+               cd ~/project/backend
+               npm install
+               npm run migrations:revert
+             fi
 jobs:
   build-frontend:
     docker:
@@ -265,8 +264,8 @@ jobs:
               echo "No migrations are pending" 
             fi
      # Here's where you will add some code to rollback on failure
-      - destroy-environment
-      - revert-migrations
+      # - destroy-environment
+      # - revert-migrations
 
   deploy-frontend:
     docker:
@@ -357,7 +356,11 @@ jobs:
       - run:
           name: Backend smoke test.
           command: |
-            export BACKEND_IP=$(aws ec2 describe-instances --query 'Reservations[*].Instances[*].PublicIpAddress' --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" --output text)
+            export BACKEND_IP=$(aws ec2 describe-instances 
+            --query 'Reservations[*].Instances[*].PublicIpAddress' 
+            --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" 
+            --output text)
+
             export API_URL="http://${BACKEND_IP}:3030"
             echo "API_URL = ${API_URL}"
             if curl "${API_URL}/api/status" | grep "ok"
@@ -373,14 +376,14 @@ jobs:
             echo ${URL} 
             if curl -s ${URL} | grep "Welcome"
             then
-              exit 0
-            else
               exit 1
+            else
+              exit 2
             fi 
-      # - destroy-environment:
-      #     Workflow_ID: ${CIRCLE_WORKFLOW_ID:0:7}
-      # - revert-migrations:
-      #     Workflow_ID: ${CIRCLE_WORKFLOW_ID:0:7}  
+      - destroy-environment
+          
+      - revert-migrations
+          
 
 
   cloudfront-update:
@@ -445,16 +448,16 @@ jobs:
 workflows:
   default:
     jobs:
-      - build-frontend
-      - build-backend
-      - test-frontend:
-          requires: [build-frontend]
-      - test-backend:
-          requires: [build-backend]
-      - scan-backend:
-          requires: [build-backend]
-      - scan-frontend:
-          requires: [build-frontend]
+      # - build-frontend
+      # - build-backend
+      # - test-frontend:
+      #     requires: [build-frontend]
+      # - test-backend:
+      #     requires: [build-backend]
+      # - scan-backend:
+      #     requires: [build-backend]
+      # - scan-frontend:
+      #     requires: [build-frontend]
       # - deploy-infrastructure:
       #     requires: [test-frontend, test-backend, scan-frontend, scan-backend]
       #     filters:
@@ -464,13 +467,13 @@ workflows:
       #     requires: [deploy-infrastructure]
       # - run-migrations:
       #     requires: [configure-infrastructure]
-      # - deploy-frontend:
-      #     requires: [run-migrations]
-      # - deploy-backend:
-      #     requires: [run-migrations]
-      # - smoke-test:
-      #     requires: [deploy-backend, deploy-frontend]
-      # - cloudfront-update:
-      #     requires: [smoke-test]
-      # # - cleanup:
-      # #     requires: [cloudfront-update]
+      - deploy-frontend
+          # requires: [run-migrations]
+      - deploy-backend
+          # requires: [run-migrations]
+      - smoke-test:
+          requires: [deploy-backend, deploy-frontend]
+      # # - cloudfront-update:
+      # #     requires: [smoke-test]
+      # # # - cleanup:
+      # # #     requires: [cloudfront-update]
