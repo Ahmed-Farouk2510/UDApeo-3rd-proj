@@ -13,6 +13,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigService } from '../config/config.service';
 import { OrdersModule } from '../domain/orders/orders.module';
 import { EmployeeModule } from '../domain/employees/employee.module';
+import { CassandraModule } from '../cassandra/cassandra.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { EmployeeModule } from '../domain/employees/employee.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => config.TypeOrmDatabase,
     }),
+    CassandraModule,
     OrdersModule,
     EmployeeModule,
   ],

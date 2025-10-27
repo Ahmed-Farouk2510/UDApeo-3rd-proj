@@ -22,6 +22,12 @@ export interface EnvConfig {
   CORS_WHITELIST: string;
   AUTH0_DOMAIN: string;
   AUTH0_AUDIENCE: string;
+  CASSANDRA_HOST: string;
+  CASSANDRA_PORT: number;
+  CASSANDRA_KEYSPACE: string;
+  CASSANDRA_USERNAME: string;
+  CASSANDRA_PASSWORD: string;
+  CASSANDRA_DATACENTER: string;
 }
 
 export class ConfigService {
@@ -54,6 +60,12 @@ export class ConfigService {
       TYPEORM_LOGGING: Joi.string().default('false'),
       // AUTH0_DOMAIN: Joi.string().required(),
       // AUTH0_AUDIENCE: Joi.string().required(),
+      CASSANDRA_HOST: Joi.string().default('localhost'),
+      CASSANDRA_PORT: Joi.number().default(9042),
+      CASSANDRA_KEYSPACE: Joi.string().default('glee'),
+      CASSANDRA_USERNAME: Joi.string().default('cassandra'),
+      CASSANDRA_PASSWORD: Joi.string().default('cassandra'),
+      CASSANDRA_DATACENTER: Joi.string().default('datacenter1'),
     }).unknown();
     const { error, value: validatedEnvConfig } = envVarsSchema.validate(envConfig);
 
@@ -117,5 +129,29 @@ export class ConfigService {
 
   get AUTH0_AUDIENCE(): string {
     return this.envConfig.AUTH0_AUDIENCE;
+  }
+
+  get CASSANDRA_HOST(): string {
+    return this.envConfig.CASSANDRA_HOST;
+  }
+
+  get CASSANDRA_PORT(): number {
+    return this.envConfig.CASSANDRA_PORT;
+  }
+
+  get CASSANDRA_KEYSPACE(): string {
+    return this.envConfig.CASSANDRA_KEYSPACE;
+  }
+
+  get CASSANDRA_USERNAME(): string {
+    return this.envConfig.CASSANDRA_USERNAME;
+  }
+
+  get CASSANDRA_PASSWORD(): string {
+    return this.envConfig.CASSANDRA_PASSWORD;
+  }
+
+  get CASSANDRA_DATACENTER(): string {
+    return this.envConfig.CASSANDRA_DATACENTER;
   }
 }
