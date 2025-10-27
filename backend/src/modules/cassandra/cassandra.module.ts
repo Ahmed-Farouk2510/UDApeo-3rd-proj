@@ -4,9 +4,11 @@ import { ConfigModule } from '../config/config.module';
 import { CassandraEmployeeRepository } from './repositories/cassandra-employee.repository';
 import { CassandraProductRepository } from './repositories/cassandra-product.repository';
 import { CassandraOrderRepository } from './repositories/cassandra-order.repository';
+import { CassandraTestController } from './cassandra-test.controller';
 
 @Module({
   imports: [ConfigModule],
+  controllers: [CassandraTestController],
   providers: [
     CassandraService,
     CassandraEmployeeRepository,
