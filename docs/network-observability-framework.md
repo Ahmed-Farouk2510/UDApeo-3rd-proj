@@ -129,6 +129,40 @@ Each layer is monitored independently and correlated end‑to‑end for latency 
 
 The FortiGate HA pair is the central traffic hub and the primary security inspection point. Observability is delivered with **SNMP v3 + syslog**: SNMP feeds Prometheus for numeric metrics; syslog feeds Promtail → Loki for security and event logs. The FortiGate REST API is used for ad‑hoc drilldowns.
 
+## 2.0 How SNMP and syslog work together (and how they appear in Grafana)
+
+SNMP and syslog are **two independent monitoring channels running at the same time on the FortiGate**. Each one feeds a different kind of data into Grafana, and both end up in the same dashboards.
+
+|  | **SNMP v3 (Prometheus)** | **Syslog (Loki via Promtail)** |
+|---|---|---|
+| Direction | **Pull** — Prometheus SNMP Exporter polls FortiGate every 30 s | **Push** — FortiGate sends a log line every time an event happens, in real time |
+| Data shape | Numeric counters (integers, gauges) | Text event records (key=value lines) |
+| What it's good for | Anything that is a **number that changes over time** — CPU %, memory %, sessions, throughput per interface, disk %, temperature, BGP peer state (0/1), tunnel state (0/1), SSL‑VPN user count | Anything that is a **described event** — IPS signature fired, virus name caught, URL blocked, DNS C2 hit, admin logged in, config changed, HA failover happened, VPN tunnel went up/down |
+| Stored in | Prometheus TSDB | Loki log store |
+| Queried in Grafana with | **PromQL** | **LogQL** |
+| Typical Grafana panels | Time‑series line charts, gauges, stat panels, bar charts, state‑timeline | Searchable log explorer **+** graphs derived from log counts (`count_over_time`, `topk`, `sum by …`), tables, geo‑maps |
+
+### Side‑by‑side example
+
+- **SNMP** answers: *"CPU on FG‑primary is 67 % and has been climbing for 20 min."* → line‑chart panel.
+- **Syslog** answers: *"At 14:02:11 IPS sensor blocked attack `MS.SMB.Server.Request.Handling` from 185.220.x.x (Russia) hitting 10.0.5.12:445; severity=critical."* → searchable log line **AND** a count panel showing 12 critical IPS hits in the last hour.
+
+### What a single FortiGate Grafana dashboard looks like
+
+One dashboard can — and should — mix both data sources. The viewer does not see which row came from where; they just see one coherent picture of the firewall.
+
+| Row | Panel | Data source |
+|---|---|---|
+| 1 — Health | CPU %, Memory %, Sessions vs licensed max, Disk %, HA sync status, last failover time | **Prometheus / SNMP** |
+| 2 — Throughput | bps in/out per N‑S interface, per E‑W interface, error rate, packet drops | **Prometheus / SNMP** |
+| 3 — Routing & VPN | BGP peer up matrix, IPsec tunnel up matrix, SSL‑VPN active users; "tunnel went down" event list | **Prometheus / SNMP** + **Loki / syslog** for the event list |
+| 4 — IPS | attacks per minute (time‑series), top 20 attack names (bar), severity heatmap, attacker geo‑map, action distribution (blocked / detected / reset) | **Loki / syslog** |
+| 5 — AntiVirus | detections per minute, top virus names, top destination URLs, file types, hosts triggering AV | **Loki / syslog** |
+| 6 — Web / DNS / App Control | blocks per minute (one panel each), top blocked categories, top blocked URLs / domains / apps, top users hitting blocks | **Loki / syslog** |
+| 7 — Admin & Compliance | admin login attempts (success vs failure), config‑change events with admin user + source IP, changes flagged when outside ITSM window | **Loki / syslog** |
+
+> **Short answer to "will I have graphs for syslog?"** — **yes**. Syslog data ends up in Loki, and Grafana turns those log records into graphs using LogQL queries like `count_over_time` and `topk`. The visual experience is identical to SNMP graphs; only the data source behind each panel differs.
+
 ## 2.1 Key Metrics to Monitor
 
 | Metric | Domain | Threshold / Alert | Severity | Impact | Source |
