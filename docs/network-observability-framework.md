@@ -51,6 +51,53 @@ Each layer is monitored independently and correlated end‑to‑end for latency 
 | Logpush (HTTP logs) | Analytics → Logs → Logpush | Streamed per‑request log records to Loki / S3 / HTTP endpoint |
 | DNS Logs (Logpush) | Analytics → Logs → Logpush | Per‑query authoritative DNS records |
 
+## 1.0a How Cloudflare data is collected and where it lands
+
+Three independent collection paths. You can use any one of them, or combine them (e.g., the CF plugin for quick built‑in panels + Logpush for per‑request analytics).
+
+|  | **A. CF Grafana plugin** (pull, on demand) | **B. Logpush → Loki** (push, real time) | **C. Prometheus CF exporter** (pull, scrape) |
+|---|---|---|---|
+| Direction | Grafana queries the CF Analytics API live every time a panel is opened | Cloudflare's edge **pushes** batched JSON to an HTTPS endpoint we run in OCI | An OCI VM scrapes the CF Analytics API every 60 s |
+| Stored where | Not stored locally — queried live from CF | **Loki** (or Elasticsearch / Object Storage) | **Prometheus TSDB** |
+| Data shape | Aggregated counters, 1‑min granularity | One JSON record per HTTP request (or per DNS query) | Aggregated counters |
+| Queried in Grafana with | Plugin query editor | **LogQL** | **PromQL** |
+| Plan requirement | All plans | Pro / Business / Enterprise (Logpush is paid) | All plans |
+| Best for | Out‑of‑the‑box panels: total requests, bandwidth, top countries, cache hit, status mix, DNS analytics | Per‑host / per‑URI / per‑status drilldowns; real P50/P95/P99 origin latency; long retention you control | Prometheus‑native view if Prometheus is already running for FortiGate |
+
+### Concrete Logpush flow (Option B — recommended for HTTP/DNS analytics)
+
+```
+Cloudflare Edge (all PoPs)
+      │  every ~5–30 s, batched JSON over HTTPS
+      ▼
+HTTPS receiver in OCI
+   (Promtail HTTP source, or Vector "cloudflare_logs" source,
+    or OCI Object Storage bucket tailed by Promtail / Vector)
+      │
+      ▼
+Loki   ──── stores the per-request log records
+      │
+      ▼
+Grafana (Loki data source) — LogQL renders graphs + Explore search
+```
+
+What you configure on the Cloudflare side: one Logpush job, dataset = `http_requests` (and optionally `dns_logs`), destination = the OCI HTTPS endpoint or bucket, fields per §1.2 Option B.
+
+### Cloudflare Grafana dashboard — which panels come from which source
+
+| Panel | Data source | Query idea |
+|---|---|---|
+| Request rate by host | **Loki / Logpush** | `sum by (host) (rate({dataset="http_requests"} [5m]))` |
+| Status code distribution (2xx/3xx/4xx/5xx) | **Loki / Logpush** | `sum by (status) (count_over_time({} | json [5m]))` |
+| 5xx rate by host | **Loki / Logpush** | filter `EdgeResponseStatus=~"5.."`, sum by host |
+| Top 4xx URIs | **Loki / Logpush** | `topk(20, sum by (uri) …)` |
+| Origin latency P50 / P95 / P99 | **Loki / Logpush** | `histogram_quantile` over `OriginResponseDurationMs` |
+| Bandwidth total / per host | **Loki / Logpush** or **CF plugin** | sum of `EdgeResponseBytes` |
+| DNS query rate, NXDOMAIN, DNS response time | **CF plugin** (or `dns_logs` via Logpush) | DNS Analytics namespace |
+| TLS handshake errors, certificate expiry | **CF plugin** or **cloudflare_exporter** | TLS error count, days‑to‑expiry |
+
+> **Short answer to "will I get graphs from Cloudflare?"** — **yes**. Option B (Logpush) gives full per‑request graphs in Grafana via Loki and LogQL; Option A (CF plugin) gives standard aggregated panels with zero setup; Option C (exporter) gives Prometheus‑style numeric graphs. All three render as normal Grafana panels.
+
 ## 1.1 Key Metrics to Monitor
 
 | Metric | Category | Threshold / Alert | Severity | Impact | Source |
@@ -398,6 +445,41 @@ Each UTM profile below documents enablement, what to log, the dashboard signal, 
 - **A** — Service Connector Hub → Streaming (Kafka) → Loki *(recommended, real‑time)*
 - **B** — Service Connector Hub → Object Storage → Logstash / Vector → Loki / Elasticsearch
 - **C** — OCI Log Analytics native + OCI Log Analytics Grafana plugin
+
+### Concrete VCN Flow Logs data flow (Option A — recommended)
+
+```
+OCI VCN subnets
+   │  Flow Logs enabled per subnet
+   ▼
+OCI Logging service
+   │
+   ▼
+Service Connector Hub  ──►  OCI Streaming (Kafka)
+                                 │
+                                 ▼
+                             Promtail / Vector consumer (OCI VM)
+                                 │
+                                 ▼
+                              Loki  ──►  Grafana (LogQL)
+```
+
+Each record is a JSON line with `action`, `sourceAddress`, `destinationAddress`, `sourcePort`, `destinationPort`, `bytesIn`, `bytesOut`, `packets`, `protocol`, `vcnId`, `subnetId`, `startTime`, `endTime`. Grafana turns these into graphs in exactly the same way it does for FortiGate syslog.
+
+### What graphs you'll see from VCN Flow Logs
+
+| Panel | What it shows | LogQL idea |
+|---|---|---|
+| Accepted vs rejected flows over time | Stacked area by `action` | `sum by (action) (rate({source="vcn-flow"} | json [5m]))` |
+| Top rejected source IPs | Bar / table | `topk(20, sum by (sourceAddress) (count_over_time({} | json | action="REJECT" [15m])))` |
+| Top denied destination ports | Bar | same idea grouped by `destinationPort` |
+| Geo‑map of rejected sources | World map by source IP country | Grafana Geomap panel |
+| Throughput per subnet | bytes/sec line chart | `sum by (subnetId) (rate({} | json | unwrap bytesIn [5m]))` |
+| Protocol distribution | Pie chart (TCP=6, UDP=17, ICMP=1) | `sum by (protocol) (count_over_time(...))` |
+| Port‑scan signal | High `packets` + low bytes from same source | filter + topk |
+| Inter‑subnet (E–W) flow matrix | source subnet × destination subnet table | group by `subnetId` and destination subnet |
+
+> **Short answer to "will I see graphs from VCN Flow Logs?"** — **yes**. Once flow logs reach Loki (via Service Connector Hub → Streaming), the panels above are standard Grafana panels driven by LogQL — same mechanism as FortiGate syslog.
 
 ## 3.3 OCI Monitoring — Native Alarms
 
